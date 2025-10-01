@@ -1,5 +1,5 @@
 # GWorkspace Analyzer - Product Specification
-
+do not use any emojis in code
 ## Overview
 A Google Workspace add-on that automatically scans Gmail for invoices and receipts to identify duplicate charges, unnecessary subscriptions, and price increases, helping users save money on their business expenses.
 
