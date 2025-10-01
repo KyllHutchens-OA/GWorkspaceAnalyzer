@@ -3,18 +3,42 @@
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
+import { DEV_MODE, DEV_USER, DEV_TOKEN } from '@/lib/devMode';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       await login();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      setError(error.message || 'Failed to login');
       setIsLoading(false);
+    }
+  };
+
+  const handleDevLogin = () => {
+    if (!DEV_MODE) {
+      setError('Dev mode only available in development environment');
+      return;
+    }
+
+    try {
+      api.setAuthToken(DEV_TOKEN);
+      setUser(DEV_USER);
+      localStorage.setItem('dev_mode', 'true');
+      console.log('Dev mode login successful');
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Dev login failed');
     }
   };
   return (
@@ -33,6 +57,12 @@ export default function LoginPage() {
 
         {/* Main Card */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-8">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           {/* Value Proposition */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Find Hidden Savings</h2>
@@ -78,7 +108,7 @@ export default function LoginPage() {
             variant="primary"
             size="lg"
             className="w-full mb-4"
-            onClick={handleLogin}
+            onClick={handleGoogleLogin}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -98,6 +128,32 @@ export default function LoginPage() {
               </>
             )}
           </Button>
+
+          {DEV_MODE && (
+            <>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Development Mode</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleDevLogin}
+                variant="outline"
+                className="w-full mb-4"
+                size="lg"
+              >
+                Dev Login (No OAuth)
+              </Button>
+
+              <p className="text-xs text-center text-gray-500 mb-4">
+                Dev mode: Uses mock auth without Google OAuth
+              </p>
+            </>
+          )}
 
           {/* Privacy Notice */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">

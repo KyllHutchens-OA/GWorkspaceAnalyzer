@@ -1,51 +1,44 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import api from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function AuthCallbackPage() {
   const [status, setStatus] = useState<'processing' | 'scanning' | 'complete' | 'error'>('processing');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [hasRun, setHasRun] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { setUser } = useAuth();
 
   useEffect(() => {
-    handleCallback();
-  }, []);
+    if (!hasRun) {
+      setHasRun(true);
+      handleCallback();
+    }
+  }, [hasRun]);
 
   const handleCallback = async () => {
     try {
-      const code = searchParams.get('code');
-      const errorParam = searchParams.get('error');
-
-      if (errorParam) {
-        setStatus('error');
-        setError(`Authentication failed: ${errorParam}`);
-        return;
-      }
-
-      if (!code) {
-        setStatus('error');
-        setError('No authorization code received');
-        return;
-      }
-
-      // Exchange code for token
       setProgress(20);
-      const { access_token, user } = await api.auth.handleCallback(code);
+      console.log('Processing Supabase auth callback...');
 
-      // Set auth token and user
-      api.setAuthToken(access_token);
-      setUser(user);
+      const { data, error: sessionError } = await supabase.auth.getSession();
 
-      setProgress(40);
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error(sessionError.message);
+      }
+
+      if (!data.session) {
+        throw new Error('No session found');
+      }
+
+      console.log('Session established:', data.session.user.email);
+
+      setProgress(60);
       setStatus('scanning');
 
-      // Simulate scanning progress (in real app, this would poll scan job status)
       await new Promise(resolve => setTimeout(resolve, 1500));
       setProgress(70);
 
@@ -55,7 +48,6 @@ export default function AuthCallbackPage() {
       setProgress(100);
       setStatus('complete');
 
-      // Redirect to dashboard
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
@@ -93,44 +85,6 @@ export default function AuthCallbackPage() {
     );
   }
 
-  // Fallback to original simulation if backend not available
-  useEffect(() => {
-    if (status === 'processing') {
-      return;
-    }
-
-    // Original simulation code as fallback
-    const timer1 = setTimeout(() => {
-      if (status !== 'complete') {
-        setStatus('scanning');
-        setProgress(30);
-      }
-    }, 1500);
-
-    const timer2 = setTimeout(() => {
-      setProgress(60);
-    }, 3000);
-
-    const timer3 = setTimeout(() => {
-      setProgress(90);
-    }, 4500);
-
-    const timer4 = setTimeout(() => {
-      setStatus('complete');
-      setProgress(100);
-      // Redirect to dashboard after completion
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1000);
-    }, 6000);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-    };
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center px-4">

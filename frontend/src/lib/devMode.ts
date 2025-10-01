@@ -15,7 +15,7 @@ export interface DevUser {
 }
 
 export const DEV_USER: DevUser = {
-  id: 'dev-user-123',
+  id: '00000000-0000-0000-0000-000000000001',
   email: 'dev@example.com',
   name: 'Development User',
   picture: undefined,

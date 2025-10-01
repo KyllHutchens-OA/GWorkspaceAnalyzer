@@ -49,18 +49,19 @@ export interface Invoice {
 
 export interface FindingResponse {
   id: string;
-  user_id: string;
   org_id: string | null;
-  finding_type: 'duplicate_charge' | 'subscription_sprawl' | 'price_increase' | 'anomaly';
-  status: 'new' | 'reviewed' | 'resolved' | 'dismissed';
+  type: 'duplicate' | 'unused_subscription' | 'price_increase' | 'anomaly';
+  status: 'pending' | 'resolved' | 'ignored';
   title: string;
-  description: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  confidence_score: number;
-  potential_savings: number | null;
-  metadata: Record<string, any>;
+  description: string | null;
+  amount: number;
+  currency: string;
+  confidence_score: number | null;
+  details: Record<string, any> | null;
   created_at: string;
-  updated_at: string;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  user_notes: string | null;
 }
 
 class ApiClient {
@@ -141,7 +142,7 @@ class ApiClient {
       return this.request('/api/v1/auth/google/login');
     },
 
-    handleCallback: async (code: string): Promise<{ access_token: string; user: any }> => {
+    handleCallback: async (code: string): Promise<{ access_token: string; token_type: string; expires_in: number }> => {
       return this.request('/api/v1/auth/google/callback', {
         method: 'POST',
         body: JSON.stringify({ code }),
@@ -210,7 +211,7 @@ class ApiClient {
       vendors_count: number;
       date_range: { start: string; end: string };
     }> => {
-      return this.request('/api/v1/invoices/stats');
+      return this.request('/api/v1/invoices/stats/summary');
     },
   };
 
@@ -250,10 +251,12 @@ class ApiClient {
     },
 
     getSummary: async (): Promise<{
-      total_findings: number;
+      pending_count: number;
+      resolved_count: number;
+      ignored_count: number;
+      total_guaranteed_waste: number;
+      total_potential_waste: number;
       by_type: Record<string, number>;
-      by_status: Record<string, number>;
-      total_potential_savings: number;
     }> => {
       return this.request('/api/v1/findings/summary');
     },

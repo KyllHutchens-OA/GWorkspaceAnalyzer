@@ -47,7 +47,7 @@ async def google_login():
         f"prompt=consent"
     )
 
-    return {"auth_url": auth_url}
+    return {"authorization_url": auth_url}
 
 
 @router.post("/google/callback", response_model=TokenResponse)
@@ -132,11 +132,12 @@ async def google_callback(
             # In production, use: supabase.vault.create_secret(...)
 
         else:
-            # Create new user
-            # Note: In Supabase, users are created via Auth
-            # This is a simplified version - in production, use Supabase Auth
+            # Create new user in users table
+            # Note: This uses the service role to bypass RLS
+            # The user will be linked to their Google account
             new_user_data = {
                 "email": email,
+                "org_id": None,  # Will be set when user creates/joins org
                 "preferences": {
                     "email_digest": True,
                     "alert_threshold": 1000,
@@ -144,13 +145,27 @@ async def google_callback(
                 },
             }
 
-            # This would fail with RLS - need to use Supabase Auth properly
-            # For now, returning error to guide proper implementation
-            raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail="User creation requires Supabase Auth integration. "
-                       "Please use Supabase client-side auth for new users.",
-            )
+            try:
+                new_user_result = (
+                    supabase.table("users")
+                    .insert(new_user_data)
+                    .execute()
+                )
+
+                if not new_user_result.data or len(new_user_result.data) == 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to create user in database",
+                    )
+
+                user = new_user_result.data[0]
+                user_id = user["id"]
+
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error creating user: {str(e)}",
+                )
 
         # Create JWT token for API access
         token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

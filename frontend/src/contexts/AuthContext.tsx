@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import api from '@/lib/api';
 
 export interface User {
@@ -11,12 +12,15 @@ export interface User {
   picture?: string;
 }
 
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  status: AuthStatus;
   login: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   setUser: (user: User | null) => void;
 }
 
@@ -29,58 +33,95 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const user = session.user;
+        setUser({
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || user.email?.split('@')[0] || '',
+          picture: user.user_metadata?.avatar_url,
+        });
+        api.setAuthToken(session.access_token);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        api.setAuthToken(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkAuth = async () => {
-    const token = api.getAuthToken();
-    if (token) {
-      try {
-        // In a real implementation, you'd validate the token with the backend
-        // For now, we'll just check if it exists
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        api.setAuthToken(null);
-        localStorage.removeItem('user');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        const user = session.user;
+        setUser({
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || user.email?.split('@')[0] || '',
+          picture: user.user_metadata?.avatar_url,
+        });
+        api.setAuthToken(session.access_token);
       }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const login = async () => {
     try {
-      const { authorization_url } = await api.auth.getLoginUrl();
-      window.location.href = authorization_url;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) throw error;
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
     }
   };
 
-  const logout = () => {
-    api.auth.logout();
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/login');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      api.setAuthToken(null);
+      setUser(null);
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const getStatus = (): AuthStatus => {
+    if (isLoading) return 'loading';
+    if (user) return 'authenticated';
+    return 'unauthenticated';
   };
 
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: !!user,
+    status: getStatus(),
     login,
     logout,
-    setUser: (newUser) => {
-      setUser(newUser);
-      if (newUser) {
-        localStorage.setItem('user', JSON.stringify(newUser));
-      } else {
-        localStorage.removeItem('user');
-      }
-    },
+    setUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

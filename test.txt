@@ -1,0 +1,20 @@
+  🎯 How to Test (Two Options):
+
+  Option A: Browser Console (Easiest!)     
+
+  # 1. Start backend
+  cd backend && python -m uvicorn
+  app.main:app --reload --port 8000        
+
+  # 2. Start frontend  
+  cd frontend && npm run dev
+
+  # 3. Open http://localhost:3000 in       
+  browser
+  # 4. Open DevTools Console (F12)
+  # 5. Run:
+  devMode.enable()  # Logs you in
+  devMode.seed()    # Creates test data    
+
+  # 6. Go to /dashboard - see real         
+  data!
