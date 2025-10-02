@@ -11,7 +11,7 @@ export function MobileActionBar() {
           <span className="text-xs font-semibold text-gray-700">Scan</span>
         </button>
 
-        <button className="flex flex-col items-center gap-1 py-2 px-3 rounded-lg bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800 transition-colors">
+        <button className="flex flex-col items-center gap-1 py-2 px-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 transition-colors">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>

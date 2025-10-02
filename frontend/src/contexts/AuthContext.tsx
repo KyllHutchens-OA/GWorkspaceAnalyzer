@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import api from '@/lib/api';
+import { syncGoogleTokensToBackend } from '@/lib/syncGoogleTokens';
 
 export interface User {
   id: string;
@@ -44,6 +45,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           picture: user.user_metadata?.avatar_url,
         });
         api.setAuthToken(session.access_token);
+
+        // Sync Google OAuth tokens to backend for Gmail access
+        await syncGoogleTokensToBackend();
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         api.setAuthToken(null);
@@ -57,9 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Checking auth with Supabase...');
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error('Supabase session error:', error);
+        setIsLoading(false);
+        return;
+      }
 
       if (session) {
+        console.log('Session found:', session.user.email);
         const user = session.user;
         setUser({
           id: user.id,
@@ -68,10 +80,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           picture: user.user_metadata?.avatar_url,
         });
         api.setAuthToken(session.access_token);
+      } else {
+        console.log('No session found');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
     } finally {
+      console.log('Auth check complete');
       setIsLoading(false);
     }
   };

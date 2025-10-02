@@ -68,6 +68,7 @@ async def get_current_user(
             settings.SUPABASE_JWT_SECRET,
             algorithms=["HS256"],
             audience="authenticated",
+            options={"verify_exp": True, "verify_iat": False},  # Disable IAT verification for clock skew
         )
 
         user_id = payload.get("sub")

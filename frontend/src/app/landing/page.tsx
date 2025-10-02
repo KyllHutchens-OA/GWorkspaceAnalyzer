@@ -72,6 +72,9 @@ export default function LandingPage() {
               <a href="#faq" className="hidden md:block text-sm font-medium text-gray-600 hover:text-gray-900">
                 FAQ
               </a>
+              <Button variant="outline" size="sm" onClick={openLoginModal}>
+                Login
+              </Button>
               <Button variant="primary" size="sm" onClick={openLoginModal}>
                 Get Started
               </Button>

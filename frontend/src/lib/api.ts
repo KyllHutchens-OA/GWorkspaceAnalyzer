@@ -142,11 +142,28 @@ class ApiClient {
       return this.request('/api/v1/auth/google/login');
     },
 
-    handleCallback: async (code: string): Promise<{ access_token: string; token_type: string; expires_in: number }> => {
+    handleCallback: async (code: string, redirect_uri?: string): Promise<{ access_token: string; token_type: string; expires_in: number }> => {
       return this.request('/api/v1/auth/google/callback', {
         method: 'POST',
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, redirect_uri }),
       });
+    },
+
+    refreshToken: async (): Promise<{ access_token: string; token_type: string; expires_in: number }> => {
+      return this.request('/api/v1/auth/refresh', {
+        method: 'POST',
+      });
+    },
+
+    getCurrentUser: async (): Promise<{
+      id: string;
+      email: string;
+      org_id: string | null;
+      preferences: Record<string, any>;
+      last_scan_at: string | null;
+      scan_count: number;
+    }> => {
+      return this.request('/api/v1/auth/me');
     },
 
     logout: () => {
@@ -184,18 +201,27 @@ class ApiClient {
   // Invoice endpoints
   invoices = {
     list: async (params?: {
-      scan_job_id?: string;
+      page?: number;
+      page_size?: number;
       vendor?: string;
+      start_date?: string;
+      end_date?: string;
       min_amount?: number;
-      limit?: number;
-      offset?: number;
-    }): Promise<Invoice[]> => {
+      max_amount?: number;
+    }): Promise<{
+      invoices: Invoice[];
+      total: number;
+      page: number;
+      page_size: number;
+    }> => {
       const queryParams = new URLSearchParams();
-      if (params?.scan_job_id) queryParams.set('scan_job_id', params.scan_job_id);
+      if (params?.page) queryParams.set('page', params.page.toString());
+      if (params?.page_size) queryParams.set('page_size', params.page_size.toString());
       if (params?.vendor) queryParams.set('vendor', params.vendor);
+      if (params?.start_date) queryParams.set('start_date', params.start_date);
+      if (params?.end_date) queryParams.set('end_date', params.end_date);
       if (params?.min_amount) queryParams.set('min_amount', params.min_amount.toString());
-      if (params?.limit) queryParams.set('limit', params.limit.toString());
-      if (params?.offset) queryParams.set('offset', params.offset.toString());
+      if (params?.max_amount) queryParams.set('max_amount', params.max_amount.toString());
 
       const query = queryParams.toString();
       return this.request(`/api/v1/invoices${query ? '?' + query : ''}`);
@@ -208,28 +234,41 @@ class ApiClient {
     getStats: async (): Promise<{
       total_invoices: number;
       total_amount: number;
-      vendors_count: number;
-      date_range: { start: string; end: string };
+      currency: string;
+      monthly_totals: Record<string, number>;
     }> => {
       return this.request('/api/v1/invoices/stats/summary');
+    },
+
+    listVendors: async (): Promise<Array<{
+      vendor_name_normalized: string;
+      invoice_count: number;
+      total_spent: number;
+      first_invoice_date: string;
+      last_invoice_date: string;
+    }>> => {
+      return this.request('/api/v1/invoices/vendors/list');
     },
   };
 
   // Findings endpoints
   findings = {
     list: async (params?: {
+      page?: number;
+      page_size?: number;
       type?: string;
       status?: string;
-      severity?: string;
-      limit?: number;
-      offset?: number;
-    }): Promise<FindingResponse[]> => {
+    }): Promise<{
+      findings: FindingResponse[];
+      total: number;
+      page: number;
+      page_size: number;
+    }> => {
       const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.set('page', params.page.toString());
+      if (params?.page_size) queryParams.set('page_size', params.page_size.toString());
       if (params?.type) queryParams.set('type', params.type);
       if (params?.status) queryParams.set('status', params.status);
-      if (params?.severity) queryParams.set('severity', params.severity);
-      if (params?.limit) queryParams.set('limit', params.limit.toString());
-      if (params?.offset) queryParams.set('offset', params.offset.toString());
 
       const query = queryParams.toString();
       return this.request(`/api/v1/findings${query ? '?' + query : ''}`);
@@ -239,14 +278,18 @@ class ApiClient {
       return this.request(`/api/v1/findings/${findingId}`);
     },
 
-    updateStatus: async (
+    getInvoices: async (findingId: string): Promise<Invoice[]> => {
+      return this.request(`/api/v1/findings/${findingId}/invoices`);
+    },
+
+    update: async (
       findingId: string,
-      status: 'new' | 'reviewed' | 'resolved' | 'dismissed',
-      notes?: string
+      status: 'pending' | 'resolved' | 'ignored',
+      user_notes?: string
     ): Promise<FindingResponse> => {
-      return this.request(`/api/v1/findings/${findingId}/status`, {
+      return this.request(`/api/v1/findings/${findingId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, notes }),
+        body: JSON.stringify({ status, user_notes }),
       });
     },
 
@@ -256,7 +299,7 @@ class ApiClient {
       ignored_count: number;
       total_guaranteed_waste: number;
       total_potential_waste: number;
-      by_type: Record<string, number>;
+      by_type: Record<string, { count: number; pending: number; total_amount: number }>;
     }> => {
       return this.request('/api/v1/findings/summary');
     },

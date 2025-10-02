@@ -29,6 +29,12 @@ class GoogleAuthRequest(BaseModel):
     redirect_uri: Optional[str] = None
 
 
+class SyncTokensRequest(BaseModel):
+    """Sync Google OAuth tokens from Supabase"""
+    google_access_token: str
+    google_refresh_token: Optional[str] = None
+
+
 @router.get("/google/login")
 async def google_login():
     """
@@ -237,3 +243,50 @@ async def get_current_user_info(
         "last_scan_at": current_user.get("last_scan_at"),
         "scan_count": current_user.get("scan_count", 0),
     }
+
+
+@router.post("/sync-google-tokens")
+async def sync_google_tokens(
+    request: SyncTokensRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """
+    Sync Google OAuth tokens from Supabase to backend database
+
+    This allows the backend to access Gmail API on behalf of the user
+
+    Args:
+        request: Google access and refresh tokens
+        current_user: Current authenticated user
+        supabase: Supabase client
+
+    Returns:
+        Success message
+    """
+    if not supabase:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database not configured"
+        )
+
+    try:
+        # Update user's Google tokens in database
+        update_result = supabase.table("users").update({
+            "google_access_token": request.google_access_token,
+            "google_refresh_token": request.google_refresh_token,
+        }).eq("id", current_user["id"]).execute()
+
+        if not update_result.data or len(update_result.data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update tokens"
+            )
+
+        return {"message": "Google tokens synced successfully"}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error syncing tokens: {str(e)}"
+        )

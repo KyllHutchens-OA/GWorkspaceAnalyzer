@@ -69,7 +69,7 @@ export function FindingsTable({ findings }: FindingsTableProps) {
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Filters</h3>
-          <button className="text-sm text-purple-600 hover:text-purple-700 font-medium">Reset</button>
+          <button className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">Reset</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -77,7 +77,7 @@ export function FindingsTable({ findings }: FindingsTableProps) {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as FilterType)}
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             >
               <option value="all">All Issues</option>
               <option value="duplicate">Duplicates</option>
@@ -90,7 +90,7 @@ export function FindingsTable({ findings }: FindingsTableProps) {
             <select
               value={filterAmount}
               onChange={(e) => setFilterAmount(e.target.value as FilterAmount)}
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             >
               <option value="all">All Amounts</option>
               <option value="100">Over $100</option>
@@ -103,7 +103,7 @@ export function FindingsTable({ findings }: FindingsTableProps) {
             <select
               value={filterConfidence}
               onChange={(e) => setFilterConfidence(e.target.value as FilterConfidence)}
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             >
               <option value="all">All Levels</option>
               <option value="certain">Certain (100%)</option>
@@ -116,7 +116,7 @@ export function FindingsTable({ findings }: FindingsTableProps) {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             >
               <option value="all">All Statuses</option>
               <option value="new">New</option>

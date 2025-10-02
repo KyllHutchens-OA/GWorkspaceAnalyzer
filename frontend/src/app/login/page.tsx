@@ -42,11 +42,11 @@ export default function LoginPage() {
     }
   };
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-slate-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         {/* Logo & Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-emerald-500 rounded-2xl mb-4 shadow-lg shadow-emerald-200">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -200,9 +200,9 @@ export default function LoginPage() {
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-500">
             By continuing, you agree to our{' '}
-            <a href="#" className="text-purple-600 hover:text-purple-700 font-medium">Terms of Service</a>
+            <a href="#" className="text-emerald-600 hover:text-emerald-700 font-medium">Terms of Service</a>
             {' '}and{' '}
-            <a href="#" className="text-purple-600 hover:text-purple-700 font-medium">Privacy Policy</a>
+            <a href="#" className="text-emerald-600 hover:text-emerald-700 font-medium">Privacy Policy</a>
           </p>
         </div>
       </div>

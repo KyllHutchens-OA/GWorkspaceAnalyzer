@@ -10,7 +10,7 @@ export function NotificationsPanel({ notifications }: NotificationsPanelProps) {
       case 'new':
         return 'bg-gradient-to-r from-blue-500/10 to-blue-600/10 border-l-4 border-blue-500';
       case 'trend':
-        return 'bg-gradient-to-r from-purple-500/10 to-purple-600/10 border-l-4 border-purple-500';
+        return 'bg-gradient-to-r from-slate-500/10 to-slate-600/10 border-l-4 border-slate-500';
       case 'reminder':
         return 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-l-4 border-orange-500';
       case 'tip':
@@ -25,7 +25,7 @@ export function NotificationsPanel({ notifications }: NotificationsPanelProps) {
       case 'new':
         return 'bg-gradient-to-br from-blue-500 to-blue-600';
       case 'trend':
-        return 'bg-gradient-to-br from-purple-500 to-purple-600';
+        return 'bg-gradient-to-br from-slate-500 to-slate-600';
       case 'reminder':
         return 'bg-gradient-to-br from-amber-500 to-orange-500';
       case 'tip':

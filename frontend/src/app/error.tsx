@@ -19,7 +19,7 @@ export default function Error({
         <p className="text-gray-600 mb-6">We encountered an error while loading this page.</p>
         <button
           onClick={() => reset()}
-          className="w-full bg-purple-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+          className="w-full bg-emerald-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
         >
           Try again
         </button>

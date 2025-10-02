@@ -3,6 +3,7 @@ Scan Job Background Processor
 Handles async processing of Gmail scan jobs
 """
 import logging
+import re
 from typing import Dict, Any
 from datetime import datetime, date
 
@@ -10,6 +11,7 @@ from supabase import Client
 
 from .gmail_service import GmailService
 from .invoice_parser import InvoiceParser
+from .duplicate_detector import DuplicateDetector
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -109,6 +111,9 @@ async def process_scan_job(
         processed_count = 0
         invoices_found = 0
 
+        # Calculate update interval for ~20% increments
+        update_interval = max(1, total_emails // 5)  # Update every 20% or at least every email
+
         for email_metadata in email_list:
             try:
                 # Get full email details
@@ -117,6 +122,12 @@ async def process_scan_job(
                 # Check if it's invoice related
                 if not gmail.is_invoice_related(email):
                     processed_count += 1
+                    # Update progress at regular intervals
+                    if processed_count % update_interval == 0 or processed_count == total_emails:
+                        supabase.table("scan_jobs").update({
+                            "processed_emails": processed_count,
+                            "invoices_found": invoices_found,
+                        }).eq("id", job_id).execute()
                     continue
 
                 # Process PDF attachments
@@ -137,13 +148,17 @@ async def process_scan_job(
                         if result.success and result.invoice:
                             invoice_data = result.invoice
 
+                            # Normalize vendor name for duplicate detection
+                            vendor_normalized = re.sub(r'[^a-zA-Z0-9]', '', invoice_data.vendor_name).lower()
+
                             # Store invoice in database
                             invoice_record = {
                                 "user_id": user["id"],
                                 "org_id": user.get("org_id"),
                                 "scan_job_id": job_id,
-                                "email_id": email["id"],
+                                "gmail_message_id": email["id"],  # Use gmail_message_id to match DB schema
                                 "vendor_name": invoice_data.vendor_name,
+                                "vendor_name_normalized": vendor_normalized,
                                 "amount": float(invoice_data.amount) if invoice_data.amount else None,
                                 "currency": invoice_data.currency,
                                 "invoice_number": invoice_data.invoice_number,
@@ -164,8 +179,8 @@ async def process_scan_job(
 
                 processed_count += 1
 
-                # Update progress every 10 emails
-                if processed_count % 10 == 0:
+                # Update progress at regular intervals (every 20% of total)
+                if processed_count % update_interval == 0 or processed_count == total_emails:
                     supabase.table("scan_jobs").update({
                         "processed_emails": processed_count,
                         "invoices_found": invoices_found,
@@ -174,7 +189,108 @@ async def process_scan_job(
             except Exception as e:
                 logger.warning(f"Failed to process email {email_metadata['id']}: {e}")
                 processed_count += 1
+                # Update progress even on errors
+                if processed_count % update_interval == 0 or processed_count == total_emails:
+                    supabase.table("scan_jobs").update({
+                        "processed_emails": processed_count,
+                        "invoices_found": invoices_found,
+                    }).eq("id", job_id).execute()
                 continue
+
+        # Final progress update to ensure 100%
+        supabase.table("scan_jobs").update({
+            "processed_emails": processed_count,
+            "invoices_found": invoices_found,
+        }).eq("id", job_id).execute()
+
+        # Analyze invoices for duplicates and other issues
+        logger.info(f"Analyzing {invoices_found} invoices for duplicates and issues...")
+
+        # Fetch all invoices for this user to analyze
+        invoices_result = (
+            supabase.table("invoices")
+            .select("*")
+            .eq("user_id", user["id"])
+            .execute()
+        )
+
+        all_invoices = invoices_result.data if invoices_result.data else []
+
+        # Convert date strings to date objects for duplicate detector
+        for invoice in all_invoices:
+            if invoice.get("invoice_date") and isinstance(invoice["invoice_date"], str):
+                try:
+                    invoice["invoice_date"] = datetime.fromisoformat(invoice["invoice_date"]).date()
+                except:
+                    invoice["invoice_date"] = None
+            if invoice.get("due_date") and isinstance(invoice["due_date"], str):
+                try:
+                    invoice["due_date"] = datetime.fromisoformat(invoice["due_date"]).date()
+                except:
+                    invoice["due_date"] = None
+
+        if len(all_invoices) > 0:
+            # Run duplicate detection
+            detector = DuplicateDetector(duplicate_window_days=7, price_threshold=20.0)
+
+            duplicate_findings = detector.detect_duplicates(all_invoices)
+            price_increase_findings = detector.detect_price_increases(all_invoices)
+            subscription_findings = detector.detect_subscription_sprawl(all_invoices)
+
+            all_findings = []
+
+            # Convert duplicate findings to database records
+            for finding in duplicate_findings:
+                finding_record = {
+                    "user_id": user["id"],
+                    "org_id": user.get("org_id"),
+                    "type": "duplicate",
+                    "title": f"Duplicate charge: {finding.vendor_name}",
+                    "description": f"{finding.invoice_count} duplicate charges detected",
+                    "amount": float(finding.amount),
+                    "confidence_score": finding.confidence_score,
+                    "status": "pending",
+                    "details": finding.details,
+                    "invoice_ids": finding.invoice_ids,
+                }
+                all_findings.append(finding_record)
+
+            # Convert price increase findings
+            for finding in price_increase_findings:
+                finding_record = {
+                    "user_id": user["id"],
+                    "org_id": user.get("org_id"),
+                    "type": "price_increase",
+                    "title": f"Price increase: {finding.vendor_name}",
+                    "description": f"{finding.increase_percentage:.1f}% increase detected",
+                    "amount": float(finding.amount),
+                    "confidence_score": finding.confidence_score,
+                    "status": "pending",
+                    "details": finding.details,
+                    "invoice_ids": finding.invoice_ids,
+                }
+                all_findings.append(finding_record)
+
+            # Convert subscription findings
+            for finding in subscription_findings:
+                finding_record = {
+                    "user_id": user["id"],
+                    "org_id": user.get("org_id"),
+                    "type": "unused_subscription",
+                    "title": f"Potential subscription issue: {finding.vendor_name}",
+                    "description": finding.description if hasattr(finding, 'description') else "Review subscription",
+                    "amount": float(finding.amount),
+                    "confidence_score": finding.confidence_score,
+                    "status": "pending",
+                    "details": finding.details if hasattr(finding, 'details') else {},
+                    "invoice_ids": finding.invoice_ids if hasattr(finding, 'invoice_ids') else [],
+                }
+                all_findings.append(finding_record)
+
+            # Save findings to database
+            if all_findings:
+                supabase.table("findings").insert(all_findings).execute()
+                logger.info(f"Created {len(all_findings)} findings")
 
         # Mark job as completed
         supabase.table("scan_jobs").update({

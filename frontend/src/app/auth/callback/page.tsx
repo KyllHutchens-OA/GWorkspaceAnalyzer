@@ -61,7 +61,7 @@ export default function AuthCallbackPage() {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-slate-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full">
           <div className="bg-white border border-red-200 rounded-2xl shadow-lg p-8">
             <div className="text-center mb-6">
@@ -74,7 +74,7 @@ export default function AuthCallbackPage() {
               <p className="text-gray-600 mb-4">{error}</p>
               <button
                 onClick={() => router.push('/login')}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
               >
                 Back to Login
               </button>
@@ -87,11 +87,11 @@ export default function AuthCallbackPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-slate-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-emerald-500 rounded-2xl mb-4 shadow-lg shadow-emerald-200">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -105,7 +105,7 @@ export default function AuthCallbackPage() {
           <div className="text-center mb-8">
             {status === 'processing' && (
               <>
-                <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Connecting to Gmail...</h2>
                 <p className="text-gray-600">Authenticating your account</p>
               </>
@@ -114,10 +114,10 @@ export default function AuthCallbackPage() {
             {status === 'scanning' && (
               <>
                 <div className="relative w-16 h-16 mx-auto mb-4">
-                  <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
-                  <div className="absolute inset-0 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="absolute inset-0 border-4 border-emerald-200 rounded-full"></div>
+                  <div className="absolute inset-0 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </div>
@@ -144,11 +144,11 @@ export default function AuthCallbackPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Progress</span>
-              <span className="text-sm font-bold text-purple-600">{progress}%</span>
+              <span className="text-sm font-bold text-emerald-600">{progress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-purple-600 to-pink-600 h-2 rounded-full transition-all duration-500 ease-out"
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 h-2 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
@@ -173,12 +173,12 @@ export default function AuthCallbackPage() {
           )}
 
           {/* Privacy Reminder */}
-          <div className="mt-6 bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
             <div className="flex items-start gap-2">
-              <svg className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
-              <p className="text-xs text-purple-900">
+              <p className="text-xs text-emerald-900">
                 We're only scanning invoice and receipt emails. Your personal emails remain private and secure.
               </p>
             </div>
@@ -188,9 +188,9 @@ export default function AuthCallbackPage() {
         {/* Loading Dots */}
         {status !== 'complete' && (
           <div className="mt-6 flex items-center justify-center gap-1">
-            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
           </div>
         )}
       </div>

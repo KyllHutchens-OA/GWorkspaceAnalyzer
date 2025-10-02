@@ -27,7 +27,7 @@ export function ActivityLog({ activities }: ActivityLogProps) {
       case 'finding':
         return <div className={`${baseClasses} bg-green-100 text-green-700`}>FD</div>;
       case 'action':
-        return <div className={`${baseClasses} bg-purple-100 text-purple-700`}>AC</div>;
+        return <div className={`${baseClasses} bg-slate-100 text-slate-700`}>AC</div>;
       case 'alert':
         return <div className={`${baseClasses} bg-orange-100 text-orange-700`}>AL</div>;
       default:
