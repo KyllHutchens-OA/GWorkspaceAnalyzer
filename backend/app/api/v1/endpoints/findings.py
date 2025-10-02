@@ -132,6 +132,49 @@ async def get_findings_summary(
     )
 
 
+@router.get("/{finding_id}/invoices")
+async def get_finding_invoices(
+    finding_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """
+    Get all invoices related to a specific finding
+
+    Args:
+        finding_id: Finding UUID
+        current_user: Authenticated user
+        supabase: Supabase client
+
+    Returns:
+        List of invoices associated with the finding
+    """
+    # First verify the finding belongs to the user
+    finding_result = supabase.table("findings").select("*").eq("id", finding_id).execute()
+
+    if not finding_result.data or len(finding_result.data) == 0:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    finding = finding_result.data[0]
+
+    # Check authorization
+    if finding.get("org_id") != current_user.get("org_id"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get invoice IDs from finding_invoices junction table
+    junction_result = supabase.table("finding_invoices").select("invoice_id").eq("finding_id", finding_id).execute()
+
+    if not junction_result.data:
+        return []
+
+    invoice_ids = [row["invoice_id"] for row in junction_result.data]
+
+    # Get invoice details
+    invoices_result = supabase.table("invoices").select("*").in_("id", invoice_ids).execute()
+
+    return invoices_result.data or []
+
+
 @router.get("", response_model=FindingListResponse)
 async def list_findings(
     page: int = Query(1, ge=1),

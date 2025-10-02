@@ -132,28 +132,130 @@ Users can:
 - **OCR**: Google Cloud Vision API or Tesseract
 - **Email sending**: SendGrid, AWS SES, or Google SMTP
 
-## Business Model
+Business Model & Pricing Strategy
+FREE AUDIT (The Trojan Horse)
+Price: $0 - One-Time Scan
+What they get:
 
-### Pricing Tiers
-1. **Free Tier (Trial)**
-   - One-time initial 90-day scan
-   - Full analysis report
-   - Dashboard access for 7 days
-   - No ongoing monitoring
+Complete 90-day Gmail scan
+Full waste report showing exact dollar amounts
+48-hour dashboard access (creates urgency, not fake 7-day access)
+Breakdown of duplicates, zombie subs, price creeps
+NO ongoing monitoring
+NO credit card required (remove friction at acquisition)
 
-2. **Pro Tier - $49/month**
-   - Continuous monitoring
-   - Weekly email digests
-   - Real-time alerts
-   - Unlimited historical scans
-   - Priority support
-   - Export reports
+The Hook:
 
-3. **Enterprise Tier** (Future)
-   - Team/organization-wide deployment
-   - Multi-account management
-   - Custom integrations
-   - Dedicated support
+"See exactly how much you're wasting in the next 3 minutes. No credit card. No catch."
+
+Why this works:
+
+Removes ALL friction to get them in
+The discovered waste amount becomes the anchoring number
+48 hours creates real urgency
+They experience immediate value before paying anything
+Countdown timer drives conversion
+
+Conversion Mechanism:
+
+User completes free audit
+Dashboard shows: "You're wasting $4,850/month"
+Countdown timer: "Dashboard access expires in 47 hours"
+CTA: "Lock in your savings with Saver - $97/month"
+Comparison: "You're wasting $4,850/month. Save it for $97/month. That's a 50:1 ROI."
+
+
+SAVER TIER - $97/month
+Core Product - 33:1 ROI
+What they get:
+
+1 Gmail account monitored
+Real-time duplicate detection
+Weekly comprehensive scans
+Subscription sprawl alerts (zombie detection)
+Price increase monitoring (>15% threshold)
+Email + Slack notifications
+Up to 1,000 invoices/month processed
+Export reports (PDF/CSV)
+Mark issues resolved
+ROI tracking dashboard
+
+The Value Stack:
+
+Average user saves $3,200/month
+You're charging $97/month
+33:1 ROI
+
+The Pitch:
+
+"For less than the cost of one Uber Eats lunch ($97/month), we'll save you an average of $3,200/month in duplicate charges, zombie subscriptions, and price creep you didn't know existed. That's a 33:1 return. If we don't save you at least $500 in the first 30 days, we'll refund you and give you an extra $100 for wasting your time."
+
+Upgrade Triggers:
+
+When they hit 800 invoices in a month (80% of limit)
+When they want to add a second email account
+When savings found exceed $5,000/month
+Email: "You've processed 800/1,000 invoices. Upgrade to Business for unlimited processing."
+
+
+BUSINESS TIER - $297/month
+Team Solution - 28:1 ROI
+What they get:
+
+Up to 5 Gmail accounts
+Daily automated scans (not weekly)
+Unlimited invoice processing
+Everything in Saver PLUS:
+Real-time alerts for duplicates >$500
+Team dashboard (up to 5 users with read-only access)
+Priority support (24-hour response)
+Bulk action tools
+Custom alert thresholds
+API access (basic read-only)
+Monthly executive summary report
+Advanced zombie subscription detection
+
+The Value Stack:
+
+Average business user manages $50K+/month in expenses
+Typical findings: $8,500/month in waste
+You're charging $297/month
+28:1 ROI
+
+The Pitch:
+
+"Your finance team is burning hours tracking invoices manually. For $297/month (less than one employee hour at a decent wage), we'll automatically catch every duplicate, track every subscription, and alert you to every price increase across all your accounts. Most teams save 10+ hours/month AND recover $8,500+ in waste. That's a 28:1 ROI on money AND time."
+
+Upgrade Triggers:
+
+When they need 6+ accounts
+When they want advanced automation rules
+When they request dedicated support
+At 4 connected accounts: "Add unlimited accounts with Enterprise."
+
+
+ENTERPRISE TIER - Starting at $997/month
+Enterprise Solution - 50:1 to 500:1 ROI
+What they get:
+
+Unlimited Gmail accounts
+Real-time continuous monitoring
+Full API access with webhooks
+Custom detection rules engine
+White-label reports
+Dedicated account manager
+Quarterly business reviews
+Custom integrations (Slack, Teams, etc.)
+SSO/SAML integration
+Advanced security features
+SLA guarantees (99.9% uptime)
+Priority development for custom features
+
+The Value Stack:
+
+Enterprise clients waste $50K-$500K+/month
+You're their financial watchdog
+ROI is 50:1 to 500:1 depending on size
 
 ### Conversion Strategy
 1. Free scan shows immediate value ("You're wasting $X,XXX")

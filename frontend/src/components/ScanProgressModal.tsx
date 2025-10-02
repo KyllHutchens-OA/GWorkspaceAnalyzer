@@ -14,39 +14,60 @@ export function ScanProgressModal({ scanJobId, onComplete, onClose }: ScanProgre
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const pollInterval = setInterval(async () => {
+    // Fetch immediately on mount
+    const fetchJob = async () => {
       try {
+        console.log('Fetching scan job:', scanJobId);
+        console.log('API URL:', `${process.env.NEXT_PUBLIC_API_URL}/api/v1/scan/jobs/${scanJobId}`);
+
         const jobData = await api.scans.get(scanJobId);
+
+        console.log('Raw API response:', JSON.stringify(jobData, null, 2));
+        console.log('Job status:', jobData?.status);
+        console.log('Total emails:', jobData?.total_emails);
+        console.log('Processed emails:', jobData?.processed_emails);
+        console.log('Progress calculation:', jobData?.processed_emails, '/', jobData?.total_emails, '=', jobData?.total_emails > 0 ? Math.round((jobData.processed_emails / jobData.total_emails) * 100) : 0, '%');
+
         setJob(jobData);
 
         if (jobData.status === 'completed') {
-          clearInterval(pollInterval);
           setTimeout(() => {
             onComplete();
           }, 1500);
         } else if (jobData.status === 'failed') {
-          clearInterval(pollInterval);
           setError(jobData.error_message || 'Scan failed');
         }
       } catch (err: any) {
-        console.error('Failed to poll scan status:', err);
+        console.error('Failed to fetch scan status:', err);
+        console.error('Error type:', typeof err);
+        console.error('Error keys:', Object.keys(err));
+        console.error('Error message:', err?.message);
+        console.error('Error response:', err?.response);
         setError(err.message || 'Failed to check scan status');
-        clearInterval(pollInterval);
       }
-    }, 2000);
+    };
+
+    // Initial fetch
+    fetchJob();
+
+    // Poll every 2 seconds
+    const pollInterval = setInterval(fetchJob, 2000);
 
     return () => clearInterval(pollInterval);
   }, [scanJobId, onComplete]);
 
   const progress = job?.total_emails > 0
-    ? Math.round((job.processed_emails / job.total_emails) * 100)
+    ? Math.round(((job.processed_emails || 0) / job.total_emails) * 100)
     : 0;
 
   const getStatusMessage = () => {
     if (!job) return 'Starting scan...';
     if (job.status === 'queued') return 'Queued - waiting to start...';
     if (job.status === 'processing') {
-      return `Scanning emails (${job.processed_emails} of ${job.total_emails})`;
+      if (job.total_emails === 0) {
+        return 'Finding emails to scan...';
+      }
+      return `Scanning emails (${job.processed_emails || 0} of ${job.total_emails})`;
     }
     if (job.status === 'completed') return 'Scan complete!';
     if (job.status === 'failed') return 'Scan failed';

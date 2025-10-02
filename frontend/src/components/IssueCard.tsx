@@ -3,9 +3,10 @@ import { IssueSummary } from '@/types';
 
 interface IssueCardProps {
   summary: IssueSummary;
+  onViewDetails?: () => void;
 }
 
-export function IssueCard({ summary }: IssueCardProps) {
+export function IssueCard({ summary, onViewDetails }: IssueCardProps) {
   const borderColors = {
     red: 'border-red-200',
     yellow: 'border-yellow-200',
@@ -64,6 +65,7 @@ export function IssueCard({ summary }: IssueCardProps) {
           variant="outline"
           size="sm"
           className="w-full"
+          onClick={onViewDetails}
         >
           View Details
         </Button>

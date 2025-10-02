@@ -5,9 +5,12 @@ interface HeroMetricProps {
   lastScanned: Date;
   invoicesAnalyzed: number;
   issuesFound: number;
+  onReviewAllIssues?: () => void;
+  onExportReport?: () => void;
+  onStartScan?: () => void;
 }
 
-export function HeroMetric({ amount, lastScanned, invoicesAnalyzed, issuesFound }: HeroMetricProps) {
+export function HeroMetric({ amount, lastScanned, invoicesAnalyzed, issuesFound, onReviewAllIssues, onExportReport, onStartScan }: HeroMetricProps) {
   const formatTimeSince = (date: Date) => {
     const hours = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60));
     if (hours < 1) return 'less than an hour ago';
@@ -39,11 +42,14 @@ export function HeroMetric({ amount, lastScanned, invoicesAnalyzed, issuesFound 
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          <Button variant="primary" size="lg">
+          <Button variant="primary" size="lg" onClick={onReviewAllIssues}>
             Review All Issues
           </Button>
-          <Button variant="outline" size="lg">
-            Export Report
+          <Button variant="outline" size="lg" onClick={onExportReport}>
+            Export Report (CSV)
+          </Button>
+          <Button variant="outline" size="lg" onClick={onStartScan}>
+            Scan Emails
           </Button>
         </div>
 

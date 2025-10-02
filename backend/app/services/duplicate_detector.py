@@ -142,10 +142,10 @@ class DuplicateDetector:
         """
         findings = []
 
-        # Sort by date
+        # Sort by date (put None dates at the end)
         sorted_invoices = sorted(
             invoices,
-            key=lambda x: x.get("invoice_date") or date.min
+            key=lambda x: x.get("invoice_date") or date.max
         )
 
         # Group by amount
@@ -322,10 +322,10 @@ class DuplicateDetector:
         by_vendor = self._group_by_vendor(invoices)
 
         for vendor_name, vendor_invoices in by_vendor.items():
-            # Sort by date
+            # Sort by date (put None dates at the end)
             sorted_invoices = sorted(
                 vendor_invoices,
-                key=lambda x: x.get("invoice_date") or date.min
+                key=lambda x: x.get("invoice_date") or date.max
             )
 
             # Compare consecutive invoices
@@ -385,10 +385,10 @@ class DuplicateDetector:
             if len(vendor_invoices) < 2:
                 continue
 
-            # Sort by date
+            # Sort by date (put None dates at the end)
             sorted_invoices = sorted(
                 vendor_invoices,
-                key=lambda x: x.get("invoice_date") or date.min
+                key=lambda x: x.get("invoice_date") or date.max
             )
 
             # Check if amounts are consistent (subscription)
@@ -424,10 +424,13 @@ class DuplicateDetector:
 
     def _calculate_avg_frequency(self, dates: List[date]) -> float:
         """Calculate average days between charges"""
-        if len(dates) < 2:
+        # Filter out None dates
+        valid_dates = [d for d in dates if d is not None]
+
+        if len(valid_dates) < 2:
             return 0
 
-        sorted_dates = sorted(dates)
+        sorted_dates = sorted(valid_dates)
         intervals = []
 
         for i in range(len(sorted_dates) - 1):

@@ -34,9 +34,13 @@ class Settings(BaseSettings):
     GOOGLE_CLOUD_PROJECT_ID: str = ""
     GOOGLE_APPLICATION_CREDENTIALS: str = ""
 
+    # OpenAI API
+    OPENAI_API_KEY: str = ""
+
     # Feature Flags
     ENABLE_OCR: bool = False
     ENABLE_WEEKLY_EMAILS: bool = False
+    USE_GPT_EXTRACTION: bool = True  # Use GPT-4o Mini for invoice extraction
 
     # CORS
     ALLOWED_ORIGINS: List[str] = [

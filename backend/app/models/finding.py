@@ -77,8 +77,8 @@ class PriceIncreaseFinding(Finding):
     old_amount: Decimal
     new_amount: Decimal
     increase_percentage: float
-    old_date: date
-    new_date: date
+    old_date: Optional[date] = None
+    new_date: Optional[date] = None
 
     def __init__(self, **data):
         super().__init__(**data)

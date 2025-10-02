@@ -5,6 +5,7 @@ import { Finding, IssueType, ConfidenceLevel } from '@/types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { FindingCard } from './FindingCard';
+import { FindingDetailModal } from './FindingDetailModal';
 
 interface FindingsTableProps {
   findings: Finding[];
@@ -18,13 +19,12 @@ type FilterStatus = 'all' | 'new' | 'in_progress' | 'resolved' | 'ignored';
 export function FindingsTable({ findings }: FindingsTableProps) {
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [filterAmount, setFilterAmount] = useState<FilterAmount>('all');
-  const [filterConfidence, setFilterConfidence] = useState<FilterConfidence>('all');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
 
   const filteredFindings = findings.filter((finding) => {
     if (filterType !== 'all' && finding.type !== filterType) return false;
     if (filterAmount !== 'all' && finding.amount < parseInt(filterAmount)) return false;
-    if (filterConfidence !== 'all' && finding.confidenceLevel !== filterConfidence) return false;
     if (filterStatus !== 'all' && finding.status !== filterStatus) return false;
     return true;
   });
@@ -71,7 +71,7 @@ export function FindingsTable({ findings }: FindingsTableProps) {
           <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Filters</h3>
           <button className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">Reset</button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Issue Type</label>
             <select
@@ -96,19 +96,6 @@ export function FindingsTable({ findings }: FindingsTableProps) {
               <option value="100">Over $100</option>
               <option value="500">Over $500</option>
               <option value="1000">Over $1,000</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Confidence</label>
-            <select
-              value={filterConfidence}
-              onChange={(e) => setFilterConfidence(e.target.value as FilterConfidence)}
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-            >
-              <option value="all">All Levels</option>
-              <option value="certain">Certain (100%)</option>
-              <option value="likely">Likely (80%+)</option>
-              <option value="possible">Possible (60%+)</option>
             </select>
           </div>
           <div>
@@ -147,16 +134,17 @@ export function FindingsTable({ findings }: FindingsTableProps) {
                   Amount
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  Confidence
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Action
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredFindings.map((finding, idx) => (
-                <tr key={finding.id} className="hover:bg-gray-50 transition-colors group">
+                <tr
+                  key={finding.id}
+                  onClick={() => setSelectedFinding(finding)}
+                  className="hover:bg-gray-50 transition-colors group cursor-pointer"
+                >
                   <td className="px-6 py-5 whitespace-nowrap">
                     <div className={`w-3 h-3 rounded-full ${getStatusColor(finding.type)} shadow-lg group-hover:scale-125 transition-transform`} />
                   </td>
@@ -173,9 +161,6 @@ export function FindingsTable({ findings }: FindingsTableProps) {
                         <span className="text-xs font-medium text-gray-500">/mo</span>
                       )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge confidence={finding.confidenceLevel}>{finding.confidence}%</Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {finding.type === 'duplicate' && (
@@ -206,6 +191,14 @@ export function FindingsTable({ findings }: FindingsTableProps) {
         )}
       </div>
       </div>
+
+      {/* Detail Modal */}
+      {selectedFinding && (
+        <FindingDetailModal
+          finding={selectedFinding}
+          onClose={() => setSelectedFinding(null)}
+        />
+      )}
     </div>
   );
 }

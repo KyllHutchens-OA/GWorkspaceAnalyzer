@@ -114,12 +114,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
-      api.setAuthToken(null);
+      // Clear local state immediately for responsive UI
       setUser(null);
+      api.setAuthToken(null);
+
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Supabase signOut error:', error);
+      }
+
+      // Navigate after state is cleared
       router.push('/login');
     } catch (error) {
       console.error('Logout failed:', error);
+      // Still navigate even if signOut fails
+      router.push('/login');
     }
   };
 

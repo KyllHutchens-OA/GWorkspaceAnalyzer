@@ -17,6 +17,18 @@ from ..config import settings
 logger = logging.getLogger(__name__)
 
 
+def convert_dates_to_strings(obj):
+    """Recursively convert date objects to strings in dictionaries and lists"""
+    if isinstance(obj, dict):
+        return {key: convert_dates_to_strings(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_dates_to_strings(item) for item in obj]
+    elif isinstance(obj, (date, datetime)):
+        return obj.isoformat() if obj else None
+    else:
+        return obj
+
+
 async def process_scan_job(
     job_id: str,
     user: Dict[str, Any],
@@ -156,7 +168,7 @@ async def process_scan_job(
                                 "user_id": user["id"],
                                 "org_id": user.get("org_id"),
                                 "scan_job_id": job_id,
-                                "gmail_message_id": email["id"],  # Use gmail_message_id to match DB schema
+                                "gmail_message_id": f"{email['id']}:{attachment['attachment_id']}",  # Make unique per attachment
                                 "vendor_name": invoice_data.vendor_name,
                                 "vendor_name_normalized": vendor_normalized,
                                 "amount": float(invoice_data.amount) if invoice_data.amount else None,
@@ -169,7 +181,13 @@ async def process_scan_job(
                                 "confidence_score": invoice_data.confidence_score,
                             }
 
-                            supabase.table("invoices").insert(invoice_record).execute()
+                            # Check if already exists to prevent duplicates on re-scans
+                            existing = supabase.table("invoices").select("id").eq(
+                                "gmail_message_id", invoice_record["gmail_message_id"]
+                            ).eq("org_id", user.get("org_id")).execute()
+
+                            if not existing.data or len(existing.data) == 0:
+                                supabase.table("invoices").insert(invoice_record).execute()
                             invoices_found += 1
                             logger.info(f"Saved invoice from {invoice_data.vendor_name}")
 
@@ -242,7 +260,6 @@ async def process_scan_job(
             # Convert duplicate findings to database records
             for finding in duplicate_findings:
                 finding_record = {
-                    "user_id": user["id"],
                     "org_id": user.get("org_id"),
                     "type": "duplicate",
                     "title": f"Duplicate charge: {finding.vendor_name}",
@@ -250,15 +267,14 @@ async def process_scan_job(
                     "amount": float(finding.amount),
                     "confidence_score": finding.confidence_score,
                     "status": "pending",
-                    "details": finding.details,
-                    "invoice_ids": finding.invoice_ids,
+                    "details": convert_dates_to_strings(finding.details),
+                    "primary_invoice_id": finding.invoice_ids[0] if finding.invoice_ids else None,
                 }
-                all_findings.append(finding_record)
+                all_findings.append((finding_record, finding.invoice_ids))
 
             # Convert price increase findings
             for finding in price_increase_findings:
                 finding_record = {
-                    "user_id": user["id"],
                     "org_id": user.get("org_id"),
                     "type": "price_increase",
                     "title": f"Price increase: {finding.vendor_name}",
@@ -266,15 +282,15 @@ async def process_scan_job(
                     "amount": float(finding.amount),
                     "confidence_score": finding.confidence_score,
                     "status": "pending",
-                    "details": finding.details,
-                    "invoice_ids": finding.invoice_ids,
+                    "details": convert_dates_to_strings(finding.details),
+                    "primary_invoice_id": finding.invoice_ids[0] if finding.invoice_ids else None,
                 }
-                all_findings.append(finding_record)
+                all_findings.append((finding_record, finding.invoice_ids))
 
             # Convert subscription findings
             for finding in subscription_findings:
+                invoice_ids = finding.invoice_ids if hasattr(finding, 'invoice_ids') else []
                 finding_record = {
-                    "user_id": user["id"],
                     "org_id": user.get("org_id"),
                     "type": "unused_subscription",
                     "title": f"Potential subscription issue: {finding.vendor_name}",
@@ -282,15 +298,34 @@ async def process_scan_job(
                     "amount": float(finding.amount),
                     "confidence_score": finding.confidence_score,
                     "status": "pending",
-                    "details": finding.details if hasattr(finding, 'details') else {},
-                    "invoice_ids": finding.invoice_ids if hasattr(finding, 'invoice_ids') else [],
+                    "details": convert_dates_to_strings(finding.details if hasattr(finding, 'details') else {}),
+                    "primary_invoice_id": invoice_ids[0] if invoice_ids else None,
                 }
-                all_findings.append(finding_record)
+                all_findings.append((finding_record, invoice_ids))
 
             # Save findings to database
             if all_findings:
-                supabase.table("findings").insert(all_findings).execute()
-                logger.info(f"Created {len(all_findings)} findings")
+                # Insert findings and get IDs
+                findings_to_insert = [f[0] for f in all_findings]
+                result = supabase.table("findings").insert(findings_to_insert).execute()
+                created_findings = result.data
+
+                logger.info(f"Created {len(created_findings)} findings")
+
+                # Insert finding_invoices junction records
+                junction_records = []
+                for i, (_, invoice_ids) in enumerate(all_findings):
+                    if i < len(created_findings):
+                        finding_id = created_findings[i]['id']
+                        for invoice_id in invoice_ids:
+                            junction_records.append({
+                                "finding_id": finding_id,
+                                "invoice_id": invoice_id
+                            })
+
+                if junction_records:
+                    supabase.table("finding_invoices").insert(junction_records).execute()
+                    logger.info(f"Created {len(junction_records)} finding-invoice relationships")
 
         # Mark job as completed
         supabase.table("scan_jobs").update({

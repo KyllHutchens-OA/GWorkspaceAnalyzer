@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { HeroMetric } from '@/components/HeroMetric';
@@ -8,11 +8,9 @@ import { IssueCard } from '@/components/IssueCard';
 import { FindingsTable } from '@/components/FindingsTable';
 import { SavingsTracker } from '@/components/SavingsTracker';
 import { ActivityLog } from '@/components/ActivityLog';
-import { NotificationsPanel } from '@/components/NotificationsPanel';
-import { QuickActionsBar } from '@/components/QuickActionsBar';
-import { SecurityBadge } from '@/components/SecurityBadge';
 import { FreeTierBanner } from '@/components/FreeTierBanner';
 import { MobileActionBar } from '@/components/MobileActionBar';
+import { ScanProgressModal } from '@/components/ScanProgressModal';
 import { Button } from '@/components/ui/Button';
 import api, { FindingResponse } from '@/lib/api';
 import { Finding, IssueSummary, DashboardStats } from '@/types';
@@ -20,24 +18,103 @@ import { ActivityLogItem, Notification, SavingsMetrics } from '@/types';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
   const [findings, setFindings] = useState<Finding[]>([]);
+  const [filteredFindings, setFilteredFindings] = useState<Finding[]>([]);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [issueSummaries, setIssueSummaries] = useState<IssueSummary[]>([]);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [savings, setSavings] = useState<SavingsMetrics>({ thisMonth: 0, thisYear: 0, total: 0 });
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showScanProgress, setShowScanProgress] = useState(false);
+  const [scanJobId, setScanJobId] = useState<string | null>(null);
+  const findingsTableRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/');
+    try {
+      await logout();
+      // Navigation handled by AuthContext logout
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force navigation even if logout fails
+      router.push('/login');
+    }
+  };
+
+  const scrollToFindings = () => {
+    findingsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleFilterByType = (type: string) => {
+    setActiveFilter(type);
+    const filtered = findings.filter(f => f.type === type);
+    setFilteredFindings(filtered);
+    scrollToFindings();
+  };
+
+  const handleViewAllIssues = () => {
+    setActiveFilter(null);
+    setFilteredFindings(findings);
+    scrollToFindings();
+  };
+
+  const handleExportCSV = () => {
+    const dataToExport = activeFilter ? filteredFindings : findings;
+
+    const headers = ['Vendor', 'Issue', 'Type', 'Amount', 'Status', 'Date Found'];
+    const rows = dataToExport.map(f => [
+      f.vendor,
+      f.issue,
+      f.type,
+      f.amount.toString(),
+      f.status,
+      f.dateFound.toISOString()
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `findings-export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleStartScan = async () => {
+    try {
+      const scanJob = await api.scans.start();
+      setScanJobId(scanJob.id);
+      setShowScanProgress(true);
+    } catch (error: any) {
+      console.error('Failed to start scan:', error);
+      alert(`Failed to start scan: ${error.message || 'Unknown error'}`);
+    }
   };
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+
+    // Redirect to login if not authenticated
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    // Load dashboard data only when authenticated
     loadDashboardData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
 
   async function loadDashboardData() {
     try {
@@ -84,12 +161,14 @@ export default function DashboardPage() {
 
       const mappedFindings = mapFindingsToFrontend(findingsData);
       setFindings(mappedFindings);
+      setFilteredFindings(mappedFindings);
 
       const summaries = mapSummariesToFrontend(findingsSummary);
       setIssueSummaries(summaries);
 
+      const totalWaste = (findingsSummary.total_guaranteed_waste || 0) + (findingsSummary.total_potential_waste || 0);
       const stats: DashboardStats = {
-        totalWaste: Math.round((findingsSummary.total_guaranteed_waste + findingsSummary.total_potential_waste) * 100) / 100,
+        totalWaste: Math.round(totalWaste * 100) / 100 || 0,
         lastScanned: scanJobs[0]?.completed_at ? new Date(scanJobs[0].completed_at) : new Date(),
         invoicesAnalyzed: invoiceStats.total_invoices || 0,
         issuesFound: findingsSummary.pending_count || 0,
@@ -99,21 +178,27 @@ export default function DashboardPage() {
       setDashboardStats(stats);
 
       const totalResolvedSavings = findingsSummary.resolved_count > 0
-        ? findingsSummary.total_guaranteed_waste * 0.5
+        ? (findingsSummary.total_guaranteed_waste || 0) * 0.5
         : 0;
 
+      const totalPendingAmount = findingsSummary.total_potential_waste || 0;
+
       const calculatedSavings: SavingsMetrics = {
-        thisMonth: Math.round(totalResolvedSavings * 0.4),
-        thisYear: Math.round(totalResolvedSavings),
-        total: Math.round(totalResolvedSavings * 1.2),
+        thisMonth: Math.round(totalResolvedSavings * 0.4) || 0,
+        thisYear: Math.round(totalResolvedSavings) || 0,
+        total: Math.round(totalResolvedSavings * 1.2) || totalResolvedSavings || totalPendingAmount || 0,
       };
       setSavings(calculatedSavings);
 
+      // Only show completed scans in activity log
+      const completedScans = scanJobs.filter(j => j.status === 'completed');
+      const latestCompletedScan = completedScans[0];
+
       const generatedActivity: ActivityLogItem[] = [
-        scanJobs[0] && {
+        latestCompletedScan && {
           id: '1',
-          timestamp: new Date(scanJobs[0].completed_at || scanJobs[0].created_at),
-          message: `Scanned ${scanJobs[0].total_emails.toLocaleString()} emails and found ${scanJobs[0].invoices_found} ${scanJobs[0].invoices_found === 1 ? 'invoice' : 'invoices'}`,
+          timestamp: new Date(latestCompletedScan.completed_at || latestCompletedScan.created_at),
+          message: `Scanned ${latestCompletedScan.total_emails.toLocaleString()} emails and found ${latestCompletedScan.invoices_found} ${latestCompletedScan.invoices_found === 1 ? 'invoice' : 'invoices'}`,
           type: 'scan' as const,
         },
         invoiceStats.total_invoices > 0 && {
@@ -131,17 +216,6 @@ export default function DashboardPage() {
       ].filter(Boolean) as ActivityLogItem[];
       setActivityLog(generatedActivity);
 
-      const generatedNotifications: Notification[] = [
-        findingsSummary.pending_count > 0 && {
-          id: '1',
-          type: 'new' as const,
-          icon: 'NEW',
-          message: `New: ${findingsSummary.pending_count} issues detected`,
-          timestamp: new Date(),
-        },
-      ].filter(Boolean) as Notification[];
-      setNotifications(generatedNotifications);
-
     } catch (err: any) {
       console.error('Failed to load dashboard data:', err);
       setError(typeof err === 'string' ? err : err.message || 'Failed to load dashboard data');
@@ -156,19 +230,30 @@ export default function DashboardPage() {
       return [];
     }
 
-    return apiFindings.map(f => ({
-      id: f.id,
-      status: f.status === 'pending' ? 'new' : f.status === 'resolved' ? 'resolved' : 'in_progress',
-      vendor: f.details?.vendor || 'Unknown',
-      issue: f.description || f.title,
-      amount: f.amount || 0,
-      confidence: Math.round((f.confidence_score || 0) * 100),
-      confidenceLevel: (f.confidence_score || 0) >= 0.95 ? 'certain' : 'likely',
-      type: f.type === 'duplicate' ? 'duplicate' :
-            f.type === 'unused_subscription' ? 'subscription' :
-            f.type === 'price_increase' ? 'price_increase' : 'duplicate',
-      dateFound: new Date(f.created_at),
-    }));
+    return apiFindings.map(f => {
+      // Extract vendor name from title (e.g., "Duplicate charge: AWS" -> "AWS")
+      let vendor = 'Unknown';
+      if (f.title) {
+        const match = f.title.match(/:\s*(.+)$/);
+        if (match) {
+          vendor = match[1];
+        }
+      }
+
+      return {
+        id: f.id,
+        status: f.status === 'pending' ? 'new' : f.status === 'resolved' ? 'resolved' : 'in_progress',
+        vendor: vendor,
+        issue: f.description || f.title,
+        amount: f.amount || 0,
+        confidence: Math.round((f.confidence_score || 0) * 100),
+        confidenceLevel: (f.confidence_score || 0) >= 0.95 ? 'certain' : 'likely',
+        type: f.type === 'duplicate' ? 'duplicate' :
+              f.type === 'unused_subscription' ? 'subscription' :
+              f.type === 'price_increase' ? 'price_increase' : 'duplicate',
+        dateFound: new Date(f.created_at),
+      };
+    });
   }
 
   function mapSummariesToFrontend(summary: any): IssueSummary[] {
@@ -209,7 +294,8 @@ export default function DashboardPage() {
     ];
   }
 
-  if (loading) {
+  // Show loading while auth is checking or data is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -218,6 +304,11 @@ export default function DashboardPage() {
         </div>
       </div>
     );
+  }
+
+  // Redirect will happen in useEffect if not authenticated
+  if (!user) {
+    return null;
   }
 
   if (error) {
@@ -253,23 +344,41 @@ export default function DashboardPage() {
                 <span className="text-sm text-gray-600">Total Saved</span>
                 <span className="text-2xl font-black text-green-600">${savings.total.toLocaleString()}</span>
               </div>
-              {user && (
-                <div className="hidden md:flex items-center gap-3">
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                    <div className="text-xs text-gray-500">{user.email}</div>
-                  </div>
-                  {user.picture && (
-                    <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full" />
-                  )}
-                </div>
-              )}
               <Button variant="primary" size="sm">
                 Upgrade
               </Button>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                Logout
-              </Button>
+              {user && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="hidden md:flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                  >
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                      <div className="text-xs text-gray-500">{user.email}</div>
+                    </div>
+                    {user.picture && (
+                      <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full" />
+                    )}
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          handleLogout();
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -293,6 +402,9 @@ export default function DashboardPage() {
             lastScanned={dashboardStats.lastScanned}
             invoicesAnalyzed={dashboardStats.invoicesAnalyzed}
             issuesFound={dashboardStats.issuesFound}
+            onReviewAllIssues={handleViewAllIssues}
+            onExportReport={handleExportCSV}
+            onStartScan={handleStartScan}
           />
 
           {/* Issue Cards Grid - The Hook Section */}
@@ -303,7 +415,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-600 mt-1">Potential savings opportunities across your subscriptions</p>
               </div>
               {dashboardStats.issuesFound > 0 && (
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleViewAllIssues}>
                   View All
                 </Button>
               )}
@@ -313,7 +425,10 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {issueSummaries.map((summary, idx) => (
                   <div key={summary.type} className={`delay-${(idx + 1) * 100}`}>
-                    <IssueCard summary={summary} />
+                    <IssueCard
+                      summary={summary}
+                      onViewDetails={() => handleFilterByType(summary.type)}
+                    />
                   </div>
                 ))}
               </div>
@@ -341,49 +456,65 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Quick Actions Bar - Desktop Only */}
-          <div className="hidden md:block">
-            <QuickActionsBar />
-          </div>
-
           {/* Savings Tracker - Mobile */}
           <div className="md:hidden">
             <SavingsTracker savings={savings} />
           </div>
 
-          {/* Smart Notifications */}
-          {notifications.length > 0 && <NotificationsPanel notifications={notifications} />}
-
           {/* Findings Table - The Proof Section */}
-          <div>
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Detailed Findings</h2>
-              <p className="text-sm text-gray-600 mt-1">Review and take action on identified issues</p>
+          <div ref={findingsTableRef}>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {activeFilter ? `${activeFilter === 'duplicate' ? 'Duplicate Charges' : activeFilter === 'subscription' ? 'Zombie Subscriptions' : 'Price Increases'}` : 'Detailed Findings'}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {activeFilter
+                    ? `Showing ${filteredFindings.length} ${activeFilter} ${filteredFindings.length === 1 ? 'finding' : 'findings'}`
+                    : 'Review and take action on identified issues'
+                  }
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {activeFilter && (
+                  <Button variant="outline" size="sm" onClick={handleViewAllIssues}>
+                    Show All
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                  Export CSV
+                </Button>
+              </div>
             </div>
-            <FindingsTable findings={findings} />
+            <FindingsTable findings={filteredFindings} />
           </div>
 
-          {/* Bottom Section - Engagement & Trust */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {activityLog.length > 0 && (
-              <div className="animate-slide-in delay-100">
-                <ActivityLog activities={activityLog} />
-              </div>
-            )}
-            {notifications.length > 0 && (
-              <div className="space-y-6 animate-slide-in delay-200">
-                <NotificationsPanel notifications={notifications} />
-              </div>
-            )}
-          </div>
-
-          {/* Security Badge */}
-          <SecurityBadge />
+          {/* Bottom Section - Activity Log */}
+          {activityLog.length > 0 && (
+            <div className="animate-slide-in delay-100">
+              <ActivityLog activities={activityLog} />
+            </div>
+          )}
         </div>
       </main>
 
       {/* Mobile Action Bar */}
       <MobileActionBar />
+
+      {/* Scan Progress Modal */}
+      {showScanProgress && scanJobId && (
+        <ScanProgressModal
+          scanJobId={scanJobId}
+          onComplete={() => {
+            // Reload page to show fresh data
+            window.location.reload();
+          }}
+          onClose={() => {
+            setShowScanProgress(false);
+            setScanJobId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

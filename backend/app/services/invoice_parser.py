@@ -1,6 +1,6 @@
 """
 Invoice Parsing Service
-Extracts structured data from PDFs, emails, and attachments
+Extracts structured data from PDFs, emails, and attachments using GPT-4o Mini
 """
 import re
 import logging
@@ -14,6 +14,7 @@ import pdfplumber
 from dateutil import parser as date_parser
 
 from ..models import ParsedInvoice, InvoiceExtractionResult, LineItem
+from .gpt_extractor import GPTInvoiceExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -21,27 +22,49 @@ logger = logging.getLogger(__name__)
 class InvoiceParser:
     """
     Parses invoices from various sources (PDF, HTML, plain text)
-    and extracts structured data
+    and extracts structured data using GPT-4o Mini
     """
 
-    # Common vendor name patterns
+    def __init__(self, use_gpt: bool = True):
+        """
+        Initialize invoice parser
+
+        Args:
+            use_gpt: Use GPT-4o Mini for extraction (default: True)
+        """
+        self.use_gpt = use_gpt
+        if use_gpt:
+            try:
+                self.gpt_extractor = GPTInvoiceExtractor()
+            except Exception as e:
+                logger.warning(f"Failed to initialize GPT extractor: {e}. Falling back to regex.")
+                self.gpt_extractor = None
+                self.use_gpt = False
+        else:
+            self.gpt_extractor = None
+
+    # Common vendor name patterns (fallback for regex mode)
     VENDOR_PATTERNS = [
+        r"^([A-Z][A-Za-z\s&,.]+?)(?:\n|\r|$)",  # First line (common for invoices)
         r"from[:\s]+([A-Z][A-Za-z\s&,.]+?)(?:\n|$)",
         r"invoice from[:\s]+([A-Z][A-Za-z\s&,.]+?)(?:\n|$)",
-        r"^([A-Z][A-Za-z\s&,.]+?)\s*(?:Inc\.?|LLC|Ltd\.?|Corporation)",
+        r"^([A-Z][A-Za-z\s&,.]+?)\s*(?:Inc\.?|LLC|Ltd\.?|Corporation|Pty)",
     ]
 
     # Amount patterns (matches $1,234.56, 1234.56, etc.)
     AMOUNT_PATTERNS = [
-        r"\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)",  # $1,234.56
-        r"(?:total|amount|due|balance)[:\s]*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)",
-        r"(\d{1,3}(?:,\d{3})*\.\d{2})\s*(?:USD|usd)",
+        r"(?:TOTAL|Total)[:\s]*\$\s*(\d[\d,]*\.\d{2})",  # TOTAL: $2,499.00
+        r"(?:total|amount|due|balance)[:\s]*\$\s*(\d[\d,]*\.\d{2})",
+        r"\$\s*(\d[\d,]*\.\d{2})",  # $1,234.56
+        r"(\d[\d,]*\.\d{2})\s*(?:USD|usd)",
     ]
 
     # Invoice number patterns
     INVOICE_NUMBER_PATTERNS = [
-        r"invoice\s*#?\s*:?\s*([A-Z0-9-]+)",
-        r"invoice\s+number\s*:?\s*([A-Z0-9-]+)",
+        r"Invoice\s+Number[:\s]+([A-Z0-9-]+)",  # Invoice Number: AWS-12345
+        r"invoice\s+number[:\s]+([A-Z0-9-]+)",
+        r"Invoice\s*#[:\s]*([A-Z0-9-]+)",  # Invoice #AWS-12345
+        r"invoice\s*#[:\s]*([A-Z0-9-]+)",
         r"#\s*([A-Z0-9-]{5,})",
     ]
 
@@ -55,7 +78,7 @@ class InvoiceParser:
 
     def parse_pdf(self, pdf_bytes: bytes, filename: str = "") -> InvoiceExtractionResult:
         """
-        Parse invoice data from PDF file
+        Parse invoice data from PDF file using GPT-4o Mini
 
         Args:
             pdf_bytes: PDF file as bytes
@@ -67,7 +90,7 @@ class InvoiceParser:
         start_time = datetime.now()
 
         try:
-            # Try pdfplumber first (better text extraction)
+            # Extract text from PDF
             text = self._extract_text_pdfplumber(pdf_bytes)
 
             if not text or len(text) < 50:
@@ -81,9 +104,15 @@ class InvoiceParser:
                     source_type="pdf",
                 )
 
-            # Parse extracted text
-            invoice = self._parse_text(text)
-            invoice.extraction_method = "pdf_parser"
+            # Parse with GPT or regex
+            if self.use_gpt and self.gpt_extractor:
+                logger.info("Using GPT-4o Mini for invoice extraction")
+                invoice = self.gpt_extractor.extract_invoice_data(text)
+            else:
+                logger.info("Using regex for invoice extraction (GPT disabled)")
+                invoice = self._parse_text(text)
+                invoice.extraction_method = "pdf_regex"
+
             invoice.raw_text = text[:5000]  # Store first 5000 chars
 
             processing_time = (datetime.now() - start_time).total_seconds() * 1000

@@ -354,7 +354,7 @@ class GmailService:
             email: Email details dictionary
 
         Returns:
-            True if email appears to be invoice-related
+            True if email appears to be invoice-related (excludes quotes)
         """
         # Keywords to look for
         invoice_keywords = [
@@ -371,22 +371,47 @@ class GmailService:
             "paid",
         ]
 
+        # Keywords that indicate this is NOT an invoice (quote/estimate)
+        quote_keywords = [
+            "quote",
+            "quotation",
+            "estimate",
+            "proposal",
+            "pro forma",
+            "proforma",
+        ]
+
         # Check subject
         subject = email.get("subject", "").lower()
+
+        # Exclude quotes/estimates
+        if any(keyword in subject for keyword in quote_keywords):
+            return False
+
         if any(keyword in subject for keyword in invoice_keywords):
             return True
 
         # Check body
         body = email.get("body", "").lower()
+
+        # Exclude quotes/estimates
+        if any(keyword in body for keyword in quote_keywords):
+            return False
+
         if any(keyword in body for keyword in invoice_keywords):
             return True
 
         # Check for PDF attachments (common for invoices)
         attachments = email.get("attachments", [])
-        if any(
-            att["filename"].lower().endswith(".pdf") or "invoice" in att["filename"].lower()
-            for att in attachments
-        ):
-            return True
+        for att in attachments:
+            filename_lower = att["filename"].lower()
+
+            # Exclude if filename contains quote/estimate keywords
+            if any(keyword in filename_lower for keyword in quote_keywords):
+                return False
+
+            # Include if it's a PDF or has invoice in the name
+            if filename_lower.endswith(".pdf") or "invoice" in filename_lower:
+                return True
 
         return False
