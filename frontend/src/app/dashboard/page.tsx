@@ -11,6 +11,8 @@ import { ActivityLog } from '@/components/ActivityLog';
 import { FreeTierBanner } from '@/components/FreeTierBanner';
 import { MobileActionBar } from '@/components/MobileActionBar';
 import { ScanProgressModal } from '@/components/ScanProgressModal';
+import { TrialCountdownBanner } from '@/components/TrialCountdownBanner';
+import { UsageLimitBanner } from '@/components/UsageLimitBanner';
 import { Button } from '@/components/ui/Button';
 import api, { FindingResponse } from '@/lib/api';
 import { Finding, IssueSummary, DashboardStats } from '@/types';
@@ -329,6 +331,10 @@ export default function DashboardPage() {
   }
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Subscription Banners */}
+      <TrialCountdownBanner />
+      <UsageLimitBanner />
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

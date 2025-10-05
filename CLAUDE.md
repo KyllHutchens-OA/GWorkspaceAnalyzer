@@ -161,17 +161,17 @@ Conversion Mechanism:
 User completes free audit
 Dashboard shows: "You're wasting $4,850/month"
 Countdown timer: "Dashboard access expires in 47 hours"
-CTA: "Lock in your savings with Saver - $97/month"
-Comparison: "You're wasting $4,850/month. Save it for $97/month. That's a 50:1 ROI."
+CTA: "Lock in your savings with Saver - $49/month"
+Comparison: "You're wasting $4,850/month. Save it for $49/month. That's a 99:1 ROI."
 
 
-SAVER TIER - $97/month
-Core Product - 33:1 ROI
+SAVER TIER - $49/month
+Core Product - 65:1 ROI
 What they get:
 
 1 Gmail account monitored
 Real-time duplicate detection
-Weekly comprehensive scans
+Weekly automated scans
 Subscription sprawl alerts (zombie detection)
 Price increase monitoring (>15% threshold)
 Email + Slack notifications
@@ -183,19 +183,19 @@ ROI tracking dashboard
 The Value Stack:
 
 Average user saves $3,200/month
-You're charging $97/month
-33:1 ROI
+You're charging $49/month
+65:1 ROI
 
 The Pitch:
 
-"For less than the cost of one Uber Eats lunch ($97/month), we'll save you an average of $3,200/month in duplicate charges, zombie subscriptions, and price creep you didn't know existed. That's a 33:1 return. If we don't save you at least $500 in the first 30 days, we'll refund you and give you an extra $100 for wasting your time."
+"For less than the cost of a Netflix subscription ($49/month), we'll save you an average of $3,200/month in duplicate charges, zombie subscriptions, and price creep you didn't know existed. That's a 65:1 return. If we don't save you at least $500 in the first 30 days, we'll refund you and give you an extra $100 for wasting your time."
 
 Upgrade Triggers:
 
 When they hit 800 invoices in a month (80% of limit)
 When they want to add a second email account
 When savings found exceed $5,000/month
-Email: "You've processed 800/1,000 invoices. Upgrade to Business for unlimited processing."
+Email: "You've processed 800/1,000 invoices this month. Upgrade to Business for unlimited processing."
 
 
 BUSINESS TIER - $297/month

@@ -28,9 +28,9 @@
 - 48-hour dashboard access
 - No credit card required
 
-**SAVER** - $97/month
+**SAVER** - $49/month
 - 1 Gmail account
-- Weekly scans
+- Weekly automated scans
 - Up to 1,000 invoices/month
 - Real-time duplicate detection
 - Email + Slack notifications
@@ -67,11 +67,11 @@
 
 #### 2. Access Control & Limits
 - [ ] Implement tier-based access control middleware
-- [ ] Add invoice processing limit checks (1,000 for Saver)
+- [ ] Add invoice processing limit checks (1,000/month for Saver)
 - [ ] Add Gmail account limit enforcement (1 for Saver, 5 for Business)
 - [ ] Implement 48-hour trial timer for Free Audit
 - [ ] Create automatic trial expiration job
-- [ ] Add scan frequency limits (weekly for Saver, daily for Business)
+- [ ] Add scan frequency limits (weekly automated for Saver, daily for Business)
 
 #### 3. Stripe Integration
 - [ ] Set up Stripe account and API keys
@@ -97,7 +97,7 @@
 - [ ] Add trial expiration banner to dashboard
 - [ ] Build "Trial Expired" paywall modal
 - [ ] Implement urgency messaging ("Dashboard access expires in X hours")
-- [ ] Add value proposition display ("You're wasting $X, save it for $97/month")
+- [ ] Add value proposition display ("You're wasting $X, save it for $49/month")
 
 #### 6. Upgrade Flow UI
 - [ ] Create pricing comparison page/modal
@@ -127,7 +127,7 @@
 - [ ] 24-hour trial expiration warning email
 - [ ] Trial expired + upgrade CTA email
 - [ ] Weekly scan digest (Saver+ only)
-- [ ] Invoice limit warning emails (80%, 95%, 100%)
+- [ ] Invoice limit warning emails (80%, 95%, 100% of monthly limit)
 - [ ] Subscription renewal reminders
 - [ ] Failed payment notifications
 

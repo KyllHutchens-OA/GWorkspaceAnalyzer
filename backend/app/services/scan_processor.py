@@ -51,7 +51,8 @@ async def process_scan_job(
         user: User dictionary with OAuth credentials
         supabase: Supabase client
     """
-    logger.info(f"Starting scan job {job_id} for user {user['id']}")
+    logger.info(f"[SCAN] Starting scan job {job_id} for user {user['id']}")
+    print(f"[SCAN] Starting scan job {job_id} for user {user['id']}")
 
     try:
         # Get scan job details
@@ -123,8 +124,9 @@ async def process_scan_job(
         processed_count = 0
         invoices_found = 0
 
-        # Calculate update interval for ~20% increments
-        update_interval = max(1, total_emails // 5)  # Update every 20% or at least every email
+        # Calculate update interval for more frequent updates
+        # Update every 5 emails OR every 10% of total, whichever is smaller
+        update_interval = max(1, min(5, total_emails // 10))
 
         for email_metadata in email_list:
             try:
@@ -305,27 +307,61 @@ async def process_scan_job(
 
             # Save findings to database
             if all_findings:
-                # Insert findings and get IDs
-                findings_to_insert = [f[0] for f in all_findings]
-                result = supabase.table("findings").insert(findings_to_insert).execute()
-                created_findings = result.data
+                # Check for existing findings to avoid duplicates on re-scans
+                # Get existing findings for this org
+                existing_findings_result = (
+                    supabase.table("findings")
+                    .select("id, type, primary_invoice_id, status")
+                    .eq("org_id", user.get("org_id"))
+                    .execute()
+                )
 
-                logger.info(f"Created {len(created_findings)} findings")
+                existing_findings_map = {}
+                if existing_findings_result.data:
+                    for ef in existing_findings_result.data:
+                        # Create a key based on type and primary invoice
+                        key = f"{ef['type']}:{ef.get('primary_invoice_id')}"
+                        existing_findings_map[key] = ef
 
-                # Insert finding_invoices junction records
-                junction_records = []
-                for i, (_, invoice_ids) in enumerate(all_findings):
-                    if i < len(created_findings):
-                        finding_id = created_findings[i]['id']
-                        for invoice_id in invoice_ids:
-                            junction_records.append({
-                                "finding_id": finding_id,
-                                "invoice_id": invoice_id
-                            })
+                # Filter out findings that already exist
+                findings_to_insert = []
+                findings_metadata = []
 
-                if junction_records:
-                    supabase.table("finding_invoices").insert(junction_records).execute()
-                    logger.info(f"Created {len(junction_records)} finding-invoice relationships")
+                for finding_record, invoice_ids in all_findings:
+                    # Check if this finding already exists
+                    key = f"{finding_record['type']}:{finding_record.get('primary_invoice_id')}"
+
+                    if key in existing_findings_map:
+                        # Finding already exists, skip it
+                        logger.debug(f"Skipping duplicate finding: {key}")
+                        continue
+
+                    findings_to_insert.append(finding_record)
+                    findings_metadata.append(invoice_ids)
+
+                if findings_to_insert:
+                    # Insert only new findings
+                    result = supabase.table("findings").insert(findings_to_insert).execute()
+                    created_findings = result.data
+
+                    logger.info(f"Created {len(created_findings)} new findings (skipped {len(all_findings) - len(findings_to_insert)} existing)")
+
+                    # Insert finding_invoices junction records
+                    junction_records = []
+                    for i, invoice_ids in enumerate(findings_metadata):
+                        if i < len(created_findings):
+                            finding_id = created_findings[i]['id']
+                            for invoice_id in invoice_ids:
+                                junction_records.append({
+                                    "finding_id": finding_id,
+                                    "invoice_id": invoice_id
+                                })
+
+                    if junction_records:
+                        supabase.table("finding_invoices").insert(junction_records).execute()
+                        logger.info(f"Created {len(junction_records)} finding-invoice relationships")
+                else:
+                    logger.info(f"No new findings to insert (all {len(all_findings)} findings already exist)")
 
         # Mark job as completed
         supabase.table("scan_jobs").update({

@@ -20,13 +20,21 @@ export function ScanProgressModal({ scanJobId, onComplete, onClose }: ScanProgre
         console.log('Fetching scan job:', scanJobId);
         console.log('API URL:', `${process.env.NEXT_PUBLIC_API_URL}/api/v1/scan/jobs/${scanJobId}`);
 
-        const jobData = await api.scans.get(scanJobId);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
+        const jobData = await api.scans.get(scanJobId);
+        clearTimeout(timeoutId);
+
+        console.log('=== SCAN PROGRESS UPDATE ===');
         console.log('Raw API response:', JSON.stringify(jobData, null, 2));
         console.log('Job status:', jobData?.status);
         console.log('Total emails:', jobData?.total_emails);
         console.log('Processed emails:', jobData?.processed_emails);
-        console.log('Progress calculation:', jobData?.processed_emails, '/', jobData?.total_emails, '=', jobData?.total_emails > 0 ? Math.round((jobData.processed_emails / jobData.total_emails) * 100) : 0, '%');
+        console.log('Invoices found:', jobData?.invoices_found);
+        const calcProgress = jobData?.total_emails > 0 ? Math.round((jobData.processed_emails / jobData.total_emails) * 100) : 0;
+        console.log('Progress calculation:', jobData?.processed_emails, '/', jobData?.total_emails, '=', calcProgress, '%');
+        console.log('===========================');
 
         setJob(jobData);
 
@@ -38,11 +46,13 @@ export function ScanProgressModal({ scanJobId, onComplete, onClose }: ScanProgre
           setError(jobData.error_message || 'Scan failed');
         }
       } catch (err: any) {
+        console.error('!!! API CALL FAILED !!!');
         console.error('Failed to fetch scan status:', err);
         console.error('Error type:', typeof err);
-        console.error('Error keys:', Object.keys(err));
+        console.error('Error keys:', err ? Object.keys(err) : 'null');
         console.error('Error message:', err?.message);
         console.error('Error response:', err?.response);
+        console.error('Error stack:', err?.stack);
         setError(err.message || 'Failed to check scan status');
       }
     };
@@ -50,15 +60,15 @@ export function ScanProgressModal({ scanJobId, onComplete, onClose }: ScanProgre
     // Initial fetch
     fetchJob();
 
-    // Poll every 2 seconds
-    const pollInterval = setInterval(fetchJob, 2000);
+    // Poll every 1 second for more responsive updates
+    const pollInterval = setInterval(fetchJob, 1000);
 
     return () => clearInterval(pollInterval);
   }, [scanJobId, onComplete]);
 
   const progress = job?.total_emails > 0
     ? Math.round(((job.processed_emails || 0) / job.total_emails) * 100)
-    : 0;
+    : (job?.status === 'processing' ? 5 : 0); // Show 5% if processing but no total yet
 
   const getStatusMessage = () => {
     if (!job) return 'Starting scan...';
@@ -120,17 +130,27 @@ export function ScanProgressModal({ scanJobId, onComplete, onClose }: ScanProgre
           {!error && job?.status !== 'completed' && (
             <div className="mb-6">
               <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500 rounded-full"
-                  style={{ width: `${progress}%` }}
-                />
+                {job?.total_emails === 0 && job?.status === 'processing' ? (
+                  // Indeterminate progress bar when finding emails
+                  <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 animate-pulse w-full opacity-50" />
+                ) : (
+                  // Normal progress bar
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500 rounded-full"
+                    style={{ width: `${progress}%` }}
+                  />
+                )}
               </div>
-              <p className="text-sm text-gray-500 mt-2">{progress}% complete</p>
+              <p className="text-sm text-gray-500 mt-2">
+                {job?.total_emails === 0 && job?.status === 'processing'
+                  ? 'Searching for emails...'
+                  : `${progress}% complete`}
+              </p>
             </div>
           )}
 
           {/* Stats */}
-          {job && job.status === 'processing' && (
+          {job && job.status === 'processing' && job.total_emails > 0 && (
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="text-2xl font-bold text-gray-900">{job.processed_emails}</div>
@@ -140,6 +160,13 @@ export function ScanProgressModal({ scanJobId, onComplete, onClose }: ScanProgre
                 <div className="text-2xl font-bold text-emerald-600">{job.invoices_found}</div>
                 <div className="text-xs text-gray-600">Invoices Found</div>
               </div>
+            </div>
+          )}
+
+          {/* Debug Info (remove in production) */}
+          {job && process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-gray-400 font-mono mb-4 p-2 bg-gray-50 rounded">
+              Debug: {job.processed_emails}/{job.total_emails} = {progress}%
             </div>
           )}
 
